@@ -190,6 +190,10 @@ table { width: 100%; border-collapse: collapse; min-width: 900px; }
 td.co .co-in input { flex: 1 1 calc(100% - 44px); }
 td.co select.software { flex: none; width: auto; min-width: 0; max-width: 130px; min-height: 24px; height: 24px; font-size: 0.74rem; font-weight: 700; padding: 0 22px 0 10px; border-radius: 999px; border: 1px solid var(--line); background-color: var(--surface); color: var(--muted); background-position: right 6px center; }
 td.co select.software[data-sw=""] { border-style: dashed; font-weight: 600; }
+td.co select.software { field-sizing: content; padding: 0 18px 0 8px; background-position: right 4px center; }
+td.co .co-in { column-gap: 4px; }
+td.co .pills { display: inline-flex; gap: 4px; flex: none; }
+td.co .co-in .dl { margin-left: 4px; }
 td.co select.software:hover { border-color: var(--muted); }
 /* Software colours */
 :root { --sw-xero: #13b5ea; --sw-xero-bg: #e8f6fc; --sw-xero-fg: #2a7fa3;
@@ -211,6 +215,13 @@ td.co select.software[data-sw="Sage"], select.software[data-sw="Sage"] { backgro
 td.co select.software[data-sw="KashFlow"], select.software[data-sw="KashFlow"] { background: var(--sw-kf-bg); color: var(--sw-kf-fg); border-color: transparent; }
 td.co select.software[data-sw="FreeAgent"], select.software[data-sw="FreeAgent"] { background: var(--sw-fa-bg); color: var(--sw-fa-fg); border-color: transparent; }
 td.co select.software[data-sw="Hammock"], select.software[data-sw="Hammock"] { background: var(--sw-hm-bg); color: var(--sw-hm-fg); border-color: transparent; }
+td.co select.vscheme[data-sw="Cash"] { background: #e2ecfd; color: #2f5596; border-color: transparent; }
+td.co select.vscheme[data-sw="Accrual"] { background: #ede4fb; color: #5b3d99; border-color: transparent; }
+td.co select.vscheme[data-sw="Flat rate"] { background: #dff4e6; color: #22673f; border-color: transparent; }
+:root[data-theme="dark"] td.co select.vscheme[data-sw="Cash"] { background: #1f2e4d; color: #9dbcf7; }
+:root[data-theme="dark"] td.co select.vscheme[data-sw="Accrual"] { background: #2c2348; color: #c3a6ff; }
+:root[data-theme="dark"] td.co select.vscheme[data-sw="Flat rate"] { background: #1a3526; color: #8fdcae; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) td.co select.vscheme[data-sw="Cash"] { background: #1f2e4d; color: #9dbcf7; } :root:not([data-theme="light"]) td.co select.vscheme[data-sw="Accrual"] { background: #2c2348; color: #c3a6ff; } :root:not([data-theme="light"]) td.co select.vscheme[data-sw="Flat rate"] { background: #1a3526; color: #8fdcae; } }
 select.software option { background: var(--surface); color: var(--ink); }
 td.billcell { width: 1%; white-space: nowrap; }
 th { text-align: left; font-size: 0.74rem; font-weight: 600; color: var(--muted); padding: 10px 10px; background: var(--surface-2); border-block: 1px solid var(--line); white-space: nowrap; }
@@ -889,7 +900,7 @@ function applyOps(data, list) {
   }
   return data;
 }
-const FIELD_LABEL = { status: "status", communicator: "communicator", preparer: "preparer", reviewer: "reviewer", billed: "billing", fee: "fee", subitems: "sub items", company: "name", tab: "list", firm: "client of", software: "software", notes: "notes", billtype: "billing type" };
+const FIELD_LABEL = { status: "status", communicator: "communicator", preparer: "preparer", reviewer: "reviewer", billed: "billing", fee: "fee", subitems: "sub items", company: "name", tab: "list", firm: "client of", software: "software", vatscheme: "VAT scheme", notes: "notes", billtype: "billing type" };
 const BILLTYPES = [["plan", "Payment plan"], ["invoiced", "Invoiced"]];
 const BILLTYPE_LABEL = Object.fromEntries(BILLTYPES);
 function tabShort(tabId) { const t = TABS.find(x => x.id === tabId); return t ? (t.kicker === "Monthly" ? t.label : t.kicker + " " + t.label) : ""; }
@@ -958,7 +969,8 @@ function saving(delta) {
 }
 
 // The same calls the rest of the page already uses
-const SHARED_FIELDS = ["company", "firm", "preparer", "reviewer", "fee", "software", "notes"];   // same on every month of a monthly client
+const SHARED_FIELDS = ["company", "firm", "preparer", "reviewer", "fee", "software", "vatscheme", "notes"];   // same on every month of a monthly client
+const VAT_SCHEMES = ["Cash", "Accrual", "Flat rate"];
 const SOFTWARE = ["Xero", "QuickBooks", "FreeAgent", "Sage", "KashFlow", "Hammock", "Spreadsheets", "Other"];
 function patch(id, fields) {
   const j = jobs.get(id); if (!j) return Promise.resolve();
@@ -1620,7 +1632,9 @@ function makeRow(id) {
   const sw = makeSelect("software", [{ v: "", l: "Software" }, ...SOFTWARE.map(x => ({ v: x, l: x }))], v => { sw.dataset.sw = v; patch(id, { software: v }); }, "Software"); sw.id = "sw-" + id;
   const per = makeSelect("", VAT_TABS.map(t => ({ v: t.id, l: t.label })), v => patch(id, { tab: v }), "VAT period"); per.id = "per-" + id;
   const when = document.createElement("span"); when.className = "when";
-  coIn.append(sw);
+  const vs = makeSelect("software vscheme", [{ v: "", l: "VAT scheme" }, ...VAT_SCHEMES.map(x => ({ v: x, l: x }))], v => { vs.dataset.sw = v; patch(id, { vatscheme: v }); }, "VAT accounting scheme"); vs.id = "vs-" + id;
+  const pills = document.createElement("span"); pills.className = "pills"; pills.append(sw, vs);
+  coIn.append(pills);
   const cells = [st, com, pre, rev, when].map(el => { const c = td(); c.append(el); return c; });
   cells[4].className = "whencell";
   const c5 = td(); c5.className = "per"; c5.append(per);
@@ -1656,7 +1670,7 @@ function makeRow(id) {
   box.append(listEl, form); subTd.append(box); subTr.append(subTd);
   const grp = document.createElement("tbody"); grp.className = "job"; grp.dataset.id = id;
   grp.append(tr, subTr);
-  grp._f = { hb, name, st, com, pre, rev, per, perCell: c5, rm, tog, prog, dl, mbadge, when, sw, subTr, subTd, list: listEl, subIn, subBtn };
+  grp._f = { hb, name, st, com, pre, rev, per, perCell: c5, rm, tog, prog, dl, mbadge, when, sw, vs, subTr, subTd, list: listEl, subIn, subBtn };
   return grp;
 }
 function syncRow(tr, j, isVat) {
@@ -1678,7 +1692,8 @@ function syncRow(tr, j, isVat) {
     if (v && !SOFTWARE.includes(v) && ![...f.sw.options].some(o => o.value === v)) f.sw.append(opt(v, v)); // keep any value not in the list
     f.sw.value = v; f.sw.dataset.sw = v;
   }
-  [f.name, f.st, f.com, f.pre, f.rev, f.per, f.rm, f.sw, f.subIn, f.subBtn].forEach(el => el.disabled = readOnly);
+  if (act !== f.vs) { const v = j.vatscheme || ""; f.vs.value = v; f.vs.dataset.sw = v; }
+  [f.name, f.st, f.com, f.pre, f.rev, f.per, f.rm, f.sw, f.vs, f.subIn, f.subBtn].forEach(el => el.disabled = readOnly);
   const t = cur(), hasSubs = !!t.subs, id = tr.dataset.id;
   const n = subsOf(j).length;
   f.tog.hidden = !hasSubs;
